@@ -267,7 +267,7 @@ function RegisterScreen({ setScreen }) {
 // ─── SCREEN: HOME ─────────────────────────────────────────────────────────────
 function HomeScreen({ setScreen }) {
   const featured = [
-    { name: "Serra Gaúcha", sub: "Gramado", img: "https://upload.wikimedia.org/wikipedia/commons/9/9e/Caracol_falls_%282_April_2008%29.jpg" },
+    { name: "Serra Gaúcha", sub: "Gramado", img: "https://blog.blablacar.com.br/wp-content/uploads/2024/08/canions-cambara-do-sul.webp" },
     { name: "Litoral Gaúcho", sub: "Torres", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80" },
     { name: "Missões", sub: "São Miguel", img: "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&q=80" },
   ];
