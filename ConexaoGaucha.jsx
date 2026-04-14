@@ -7,7 +7,7 @@ import { useState } from "react";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const REGIONS = [
-  { id: "serra", name: "Serra Gaúcha", cities: "Gramado · Canela · Bento Gonçalves", img: "https://images.unsplash.com/photo-1599413987323-b2b8c0d7d9c8?w=400&q=80" },
+  { id: "serra", name: "Serra Gaúcha", cities: "Gramado · Canela · Bento Gonçalves", img: "https://blog.blablacar.com.br/wp-content/uploads/2024/08/canions-cambara-do-sul.webp" },
   { id: "litoral", name: "Litoral Gaúcho", cities: "Torres · Tramandaí · Capão da Canoa", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80" },
   { id: "missoes", name: "Missões", cities: "São Miguel das Missões · Santo Ângelo", img: "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&q=80" },
   { id: "campanha", name: "Campanha Gaúcha", cities: "Bagé · Santana do Livramento · Dom Pedrito", img: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=80" },
