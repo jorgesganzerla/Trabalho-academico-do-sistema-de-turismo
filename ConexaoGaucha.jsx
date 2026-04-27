@@ -1,4 +1,7 @@
 import { useState } from "react";
+import serra_gaucha from "./src/assets/serra_gaucha.jpg";
+import vale_dos_vinhedos from "./src/assets/vale_dos_vinhedos.jpeg";
+
 
 // ─── THEME / DESIGN TOKENS ───────────────────────────────────────────────────
 // Palette: deep teal (#0D3349), mid teal (#1A5276), accent cyan (#2E9EC4),
@@ -7,13 +10,13 @@ import { useState } from "react";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const REGIONS = [
-  { id: "serra", name: "Serra Gaúcha", cities: "Gramado · Canela · Bento Gonçalves", img: "https://images.unsplash.com/photo-1599413987323-b2b8c0d7d9c8?w=400&q=80" },
+  { id: "serra", name: "Serra Gaúcha", cities: "Gramado · Canela · Bento Gonçalves", img: serra_gaucha },
   { id: "litoral", name: "Litoral Gaúcho", cities: "Torres · Tramandaí · Capão da Canoa", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80" },
   { id: "missoes", name: "Missões", cities: "São Miguel das Missões · Santo Ângelo", img: "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&q=80" },
   { id: "campanha", name: "Campanha Gaúcha", cities: "Bagé · Santana do Livramento · Dom Pedrito", img: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=80" },
   { id: "poa", name: "Porto Alegre e Região", cities: "Porto Alegre · Novo Hamburgo · São Leopoldo", img: "https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=400&q=80" },
   { id: "nordeste", name: "Serra do Nordeste", cities: "Vacaria · Bom Jesus · São Francisco de Paula", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=80" },
-  { id: "vinhedos", name: "Vale dos Vinhedos", cities: "Garibaldi · Carlos Barbosa · Monte Belo do Sul", img: "https://images.unsplash.com/photo-1566903209804-1b26cc4e44a3?w=400&q=80" },
+  { id: "vinhedos", name: "Vale dos Vinhedos", cities: "Garibaldi · Carlos Barbosa · Monte Belo do Sul", img: vale_dos_vinhedos },
 ];
 
 const PREFERENCES = [
@@ -80,7 +83,7 @@ const SAMPLE_ITINERARY = {
           cost: "R$ 80 por pessoa",
           duration: "4–5 horas",
           rating: 4.9,
-          img: "https://images.unsplash.com/photo-1566903209804-1b26cc4e44a3?w=400&q=80",
+          img: vale_dos_vinhedos,
         },
       ],
     },
@@ -267,7 +270,7 @@ function RegisterScreen({ setScreen }) {
 // ─── SCREEN: HOME ─────────────────────────────────────────────────────────────
 function HomeScreen({ setScreen }) {
   const featured = [
-    { name: "Serra Gaúcha", sub: "Gramado", img: "https://blog.blablacar.com.br/wp-content/uploads/2024/08/canions-cambara-do-sul.webp" },
+    { name: "Serra Gaúcha", sub: "Gramado", img: serra_gaucha },
     { name: "Litoral Gaúcho", sub: "Torres", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80" },
     { name: "Missões", sub: "São Miguel", img: "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&q=80" },
   ];
