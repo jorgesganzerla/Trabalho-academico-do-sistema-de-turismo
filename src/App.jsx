@@ -2,7 +2,6 @@ import { useState } from "react";
 import serra_gaucha from "./assets/serra_gaucha.jpg";
 import vale_dos_vinhedos from "./assets/vale_dos_vinhedos.jpeg";
 
-
 // ─── THEME / DESIGN TOKENS ───────────────────────────────────────────────────
 // Palette: deep teal (#0D3349), mid teal (#1A5276), accent cyan (#2E9EC4),
 //          light bg (#EBF4F8), card white (#FFFFFF), text dark (#0D1F2D)
