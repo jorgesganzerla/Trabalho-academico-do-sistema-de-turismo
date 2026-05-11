@@ -4,22 +4,22 @@ const { query, initTables } = require('./db');
 async function seed() {
   await initTables();
 
-  const regioes = [
-    ['Serra Gaúcha',         'serra-gaucha',    'Gramado, Canela, Bento Gonçalves e região serrana'],
-    ['Litoral Gaúcho',       'litoral-gaucho',  'Torres, Tramandaí, Capão da Canoa'],
-    ['Missões',              'missoes',         'São Miguel das Missões, Santo Ângelo'],
-    ['Campanha Gaúcha',      'campanha-gaucha', 'Bagé, Santana do Livramento, Dom Pedrito'],
-    ['Porto Alegre e Região','porto-alegre',    'Porto Alegre, Novo Hamburgo, São Leopoldo'],
-    ['Serra do Nordeste',    'serra-nordeste',  'Vacaria, Bom Jesus, São Francisco de Paula'],
-    ['Vale dos Vinhedos',    'vale-vinhedos',   'Garibaldi, Carlos Barbosa, Monte Belo do Sul'],
-  ];
+const regioes = [
+  ['Serra Gaúcha',          'serra-gaucha',    'Gramado, Canela, Bento Gonçalves e região serrana',          'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=80'],
+  ['Litoral Gaúcho',        'litoral-gaucho',  'Torres, Tramandaí, Capão da Canoa',                          'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80'],
+  ['Missões',               'missoes',         'São Miguel das Missões, Santo Ângelo',                       'https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&q=80'],
+  ['Campanha Gaúcha',       'campanha-gaucha', 'Bagé, Santana do Livramento, Dom Pedrito',                   'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=80'],
+  ['Porto Alegre e Região', 'porto-alegre',    'Porto Alegre, Novo Hamburgo, São Leopoldo',                  'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=400&q=80'],
+  ['Serra do Nordeste',     'serra-nordeste',  'Vacaria, Bom Jesus, São Francisco de Paula',                 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400&q=80'],
+  ['Vale dos Vinhedos',     'vale-vinhedos',   'Garibaldi, Carlos Barbosa, Monte Belo do Sul',               'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&q=80'],
+];
 
-  for (const [nome, slug, descricao] of regioes) {
-    await query(
-      'INSERT IGNORE INTO regioes (nome, slug, descricao) VALUES (?, ?, ?)',
-      [nome, slug, descricao]
-    );
-  }
+for (const [nome, slug, descricao, imagem_url] of regioes) {
+  await query(
+    'INSERT IGNORE INTO regioes (nome, slug, descricao, imagem_url) VALUES (?, ?, ?, ?)',
+    [nome, slug, descricao, imagem_url]
+  );
+}
 
   // Busca IDs das regiões inseridas
   const regsRows = await query('SELECT id, slug FROM regioes');

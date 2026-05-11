@@ -21,6 +21,9 @@ export const api = {
   getRoteiros: (token) =>
     fetch(`${BASE}/roteiros`, { headers: headers(token) }).then(r => r.json()),
 
+  getRoteiro: (token, id) =>
+    fetch(`${BASE}/roteiros/${id}`, { headers: headers(token) }).then(r => r.json()),
+
   deletarRoteiro: (token, id) =>
     fetch(`${BASE}/roteiros/${id}`, { method: 'DELETE', headers: headers(token) }).then(r => r.json()),
 
