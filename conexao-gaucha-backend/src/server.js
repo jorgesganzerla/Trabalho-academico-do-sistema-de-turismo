@@ -15,6 +15,9 @@ app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/regioes',  require('./routes/regioes'));
 app.use('/api/roteiros', require('./routes/roteiros'));
 app.use('/api/perfil',   require('./routes/perfil'));
+app.use('/api/notificacoes', require('./routes/notificacoes'));
+app.use('/api/favoritos',  require('./routes/favoritos'));
+app.use('/api/avaliacoes', require('./routes/avaliacoes'));
 
 // Health check
 app.get('/api/health', (_, res) => res.json({ status: 'ok', app: 'Conexão Gaúcha' }));

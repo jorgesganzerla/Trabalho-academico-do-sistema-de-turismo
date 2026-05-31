@@ -45,7 +45,8 @@ router.post('/', async (req, res) => {
     if (nivel_orcamento === 'moderado')  sqlLocais += ' AND custo_medio <= 100';
 
     sqlLocais += ' ORDER BY avaliacao DESC LIMIT 20';
-    const [locaisRows] = await conn.execute(sqlLocais, paramsLocais);
+const [locaisRows] = await conn.execute(sqlLocais, paramsLocais);
+const locais = locaisRows;
 
     // Cria o roteiro
     const [roteiroResult] = await conn.execute(
@@ -99,6 +100,12 @@ router.post('/', async (req, res) => {
     );
 
     await conn.commit();
+
+    await query(
+      'INSERT INTO notificacoes (usuario_id, titulo, mensagem) VALUES (?, ?, ?)',
+      [usuario_id, '🗺️ Roteiro criado!', `Seu roteiro "${titulo}" foi criado com sucesso. Custo estimado: R$ ${custo_total.toFixed(2)}.`]
+    );
+
 
     // Retorna roteiro completo
     const roteiro = await getRoteiroCompleto(roteiro_id);
@@ -233,12 +240,19 @@ router.delete('/:id', async (req, res) => {
     );
     if (result.affectedRows === 0)
       return res.status(404).json({ error: 'Roteiro não encontrado.' });
+
+    await query(
+      'INSERT INTO notificacoes (usuario_id, titulo, mensagem) VALUES (?, ?, ?)',
+      [req.usuario.id, '🗑️ Roteiro excluído', 'Um roteiro foi removido do seu histórico.']
+    );
+
     return res.json({ message: 'Roteiro excluído com sucesso.' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Erro ao excluir roteiro.' });
   }
 });
+
 
 // ── Helper: busca roteiro completo com dias e itens ──────────────────────────
 async function getRoteiroCompleto(id, usuario_id = null) {

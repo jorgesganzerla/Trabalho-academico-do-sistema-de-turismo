@@ -111,7 +111,43 @@ async function initTables() {
       FOREIGN KEY (local_id) REFERENCES locais(id)
     )
   `);
+  await pool.execute(`
+  CREATE TABLE IF NOT EXISTS notificacoes (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    titulo     VARCHAR(150) NOT NULL,
+    mensagem   TEXT NOT NULL,
+    lida       TINYINT(1) DEFAULT 0,
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  await pool.execute(`
+  CREATE TABLE IF NOT EXISTS regioes_favoritas (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    regiao_id  INT NOT NULL,
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_fav (usuario_id, regiao_id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (regiao_id)  REFERENCES regioes(id)  ON DELETE CASCADE
+  )
+`);
 
+await pool.execute(`
+  CREATE TABLE IF NOT EXISTS avaliacoes (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    roteiro_id INT NOT NULL,
+    estrelas   TINYINT NOT NULL CHECK (estrelas BETWEEN 1 AND 5),
+    comentario TEXT,
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_aval (usuario_id, roteiro_id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (roteiro_id) REFERENCES roteiros(id) ON DELETE CASCADE
+  ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+`);
   console.log('✅ Tabelas verificadas/criadas com sucesso.');
 }
 

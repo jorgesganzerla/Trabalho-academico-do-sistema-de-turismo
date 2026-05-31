@@ -215,16 +215,64 @@ function RegisterScreen({ setScreen, onLogin }) {
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
-function HomeScreen({ setScreen, usuario, token, setRoteiroAtivo }) {
+function HomeScreen({ setScreen, usuario, token, setRoteiroAtivo, setPlanData }) {
   const [roteiros, setRoteiros] = useState([]);
+  const [regioes, setRegioes] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [painelAberto, setPainelAberto] = useState(false);
+  const [populares, setPopulares] = useState([]);
 
   useEffect(() => {
-    api.getRoteiros(token).then((data) => {
-      if (Array.isArray(data)) setRoteiros(data.slice(0, 2));
-    });
+    api.getRoteiros(token).then((data) => { if (Array.isArray(data)) setRoteiros(data); });
+    api.getRegioes(token).then((data) => { if (Array.isArray(data)) setRegioes(data); });
+    api.getNotificacoes(token).then((data) => { if (Array.isArray(data)) setNotificacoes(data); });
+    api.getLocaisPopulares(token).then((data) => { if (Array.isArray(data)) setPopulares(data); });
   }, [token]);
 
+  const naoLidas = notificacoes.filter((n) => !n.lida).length;
   const primeiroNome = usuario?.nome_completo?.split(" ")[0] || "Viajante";
+  const termo = busca.toLowerCase().trim();
+
+  const roteirosFiltrados = termo
+    ? roteiros.filter((r) =>
+        r.titulo.toLowerCase().includes(termo) ||
+        r.regiao_nome.toLowerCase().includes(termo)
+      )
+    : roteiros.slice(0, 2);
+
+  const regioesFiltradas = termo
+    ? regioes.filter((r) => r.nome.toLowerCase().includes(termo))
+    : [];
+
+  const semResultados = termo && roteirosFiltrados.length === 0 && regioesFiltradas.length === 0;
+
+  const abrirPainel = async () => {
+    setPainelAberto(true);
+    if (naoLidas > 0) {
+      await api.marcarNotificacoesLidas(token);
+      setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: 1 })));
+    }
+  };
+
+  const getEpoca = () => {
+    const mes = new Date().getMonth() + 1;
+    if (mes >= 12 || mes <= 2) return "verão 🌊";
+    if (mes >= 3 && mes <= 5) return "outono 🍂";
+    if (mes >= 6 && mes <= 8) return "inverno ❄️";
+    return "primavera 🌸";
+  };
+
+  const irParaLocal = (local) => {
+    const regiao = {
+      id: local.regiao_id,
+      nome: local.regiao_nome,
+      slug: local.regiao_slug,
+      imagem_url: local.regiao_imagem,
+    };
+    setPlanData((p) => ({ ...p, regiao }));
+    setScreen("planner2");
+  };
 
   return (
     <PageWrapper screen="home" setScreen={setScreen}>
@@ -233,55 +281,182 @@ function HomeScreen({ setScreen, usuario, token, setRoteiroAtivo }) {
           <p className="text-slate-500 text-sm">Olá, {primeiroNome} 👋</p>
           <h1 className="text-slate-900 text-2xl font-bold">Para onde vamos?</h1>
         </div>
-        <button className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center relative">🔔</button>
+        <button onClick={abrirPainel} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center relative">
+          🔔
+          {naoLidas > 0 && (
+            <span className="absolute top-1 right-1 w-4 h-4 bg-cyan-500 rounded-full border-2 border-white text-white text-[9px] font-bold flex items-center justify-center">
+              {naoLidas > 9 ? "9+" : naoLidas}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Painel de notificações */}
+      {painelAberto && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setPainelAberto(false)} />
+          <div className="relative w-full max-w-sm bg-white rounded-t-3xl shadow-2xl max-h-[70vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100">
+              <h2 className="text-slate-800 font-bold text-lg">Notificações</h2>
+              <button onClick={() => setPainelAberto(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-3 flex flex-col gap-3">
+              {notificacoes.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-8">Nenhuma notificação ainda.</p>
+              ) : (
+                notificacoes.map((n) => (
+                  <div key={n.id} className={`rounded-xl p-3 border ${n.lida ? "bg-white border-slate-100" : "bg-cyan-50 border-cyan-100"}`}>
+                    <p className="text-slate-800 font-semibold text-sm">{n.titulo}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{n.mensagem}</p>
+                    <p className="text-slate-300 text-xs mt-1">{new Date(n.criado_em).toLocaleString("pt-BR")}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="px-5 pb-4 bg-white">
         <div className="bg-slate-100 rounded-xl flex items-center gap-2 px-4 py-3">
           <span className="text-slate-400">🔍</span>
-          <input placeholder="Buscar destino ou atividade..." className="bg-transparent flex-1 text-sm text-slate-600 placeholder-slate-400 focus:outline-none" />
+          <input
+            placeholder="Buscar destino ou atividade..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="bg-transparent flex-1 text-sm text-slate-600 placeholder-slate-400 focus:outline-none"
+          />
+          {busca && (
+            <button onClick={() => setBusca("")} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+          )}
         </div>
       </div>
 
-      <div className="px-5 pb-5 bg-white">
-        <div className="bg-gradient-to-br from-teal-800 to-teal-600 rounded-2xl px-5 py-5 relative overflow-hidden">
-          <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/10" />
-          <p className="text-teal-200 text-xs mb-1">Pronto para explorar?</p>
-          <h2 className="text-white font-bold text-lg leading-snug mb-4">Crie seu roteiro personalizado</h2>
-          <button onClick={() => setScreen("planner")}
-            className="bg-cyan-400 hover:bg-cyan-300 text-teal-900 font-bold text-sm px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all active:scale-95">
-            + Planejar viagem
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white mt-2 px-5 pb-8">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-slate-800 font-bold">Roteiros recentes</h3>
-          <button onClick={() => setScreen("history")} className="text-teal-600 text-sm font-medium">Histórico →</button>
-        </div>
-        {roteiros.length === 0 ? (
-          <p className="text-slate-400 text-sm text-center py-6">Nenhum roteiro criado ainda.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {roteiros.map((r) => (
-              <div key={r.id} onClick={() => { setRoteiroAtivo(r); setScreen("itinerary"); }}
-                className="flex gap-3 bg-slate-50 rounded-xl p-3 cursor-pointer hover:bg-slate-100 transition">
-                <img src={IMG_FALLBACK[r.regiao_slug] || IMG_FALLBACK.serra} alt={r.regiao_nome}
-                  className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-800 font-semibold text-sm truncate">{r.titulo}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">📍 {r.regiao_nome}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">📅 {r.data_inicio}</p>
-                </div>
-                <span className="text-teal-700 font-bold text-sm whitespace-nowrap self-center">
-                  R$ {Number(r.custo_total).toFixed(2)}
-                </span>
+      {termo ? (
+        <div className="px-5 pb-8 bg-white flex flex-col gap-5">
+          {semResultados && (
+            <p className="text-slate-400 text-sm text-center py-8">Nenhum resultado para "{busca}".</p>
+          )}
+          {regioesFiltradas.length > 0 && (
+            <div>
+              <h3 className="text-slate-800 font-bold mb-3">Regiões</h3>
+              <div className="flex flex-col gap-2">
+                {regioesFiltradas.map((r) => (
+                  <div key={r.id}
+                    onClick={() => { setPlanData((p) => ({ ...p, regiao: r })); setScreen("planner2"); }}
+                    className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 cursor-pointer hover:bg-slate-100 transition">
+                    <img src={getImg(r)} alt={r.nome} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                    <div>
+                      <p className="text-slate-800 font-semibold text-sm">{r.nome}</p>
+                      <p className="text-slate-400 text-xs">{r.descricao}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+          {roteirosFiltrados.length > 0 && (
+            <div>
+              <h3 className="text-slate-800 font-bold mb-3">Roteiros</h3>
+              <div className="flex flex-col gap-3">
+                {roteirosFiltrados.map((r) => (
+                  <div key={r.id}
+                    onClick={() => { setRoteiroAtivo(r); setScreen("itinerary"); }}
+                    className="flex gap-3 bg-slate-50 rounded-xl p-3 cursor-pointer hover:bg-slate-100 transition">
+                    <img src={IMG_FALLBACK[r.regiao_slug] || IMG_FALLBACK['serra-gaucha']} alt={r.regiao_nome}
+                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-slate-800 font-semibold text-sm truncate">{r.titulo}</p>
+                      <p className="text-slate-400 text-xs mt-0.5">📍 {r.regiao_nome}</p>
+                      <p className="text-slate-400 text-xs mt-0.5">📅 {r.data_inicio}</p>
+                    </div>
+                    <span className="text-teal-700 font-bold text-sm whitespace-nowrap self-center">
+                      R$ {Number(r.custo_total).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="px-5 pb-5 bg-white">
+            <div className="bg-gradient-to-br from-teal-800 to-teal-600 rounded-2xl px-5 py-5 relative overflow-hidden">
+              <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/10" />
+              <p className="text-teal-200 text-xs mb-1">Pronto para explorar?</p>
+              <h2 className="text-white font-bold text-lg leading-snug mb-4">Crie seu roteiro personalizado</h2>
+              <button onClick={() => setScreen("planner")}
+                className="bg-cyan-400 hover:bg-cyan-300 text-teal-900 font-bold text-sm px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all active:scale-95">
+                + Planejar viagem
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Populares por época */}
+          {populares.length > 0 && (
+            <div className="bg-white pb-5">
+              <div className="px-5 mb-3">
+                <h3 className="text-slate-800 font-bold">🏆 Populares no {getEpoca()}</h3>
+                <p className="text-slate-400 text-xs mt-0.5">Os 5 lugares mais indicados para essa época</p>
+              </div>
+              <div className="flex gap-3 px-5 overflow-x-auto scrollbar-hide">
+                {populares.map((local) => (
+                  <div key={local.id} onClick={() => irParaLocal(local)}
+                    className="flex-shrink-0 w-44 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-md transition">
+                    <div className="relative h-24">
+                      <img
+                        src={local.imagem_url || IMG_FALLBACK[local.regiao_slug] || IMG_FALLBACK['serra-gaucha']}
+                        alt={local.nome}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <span className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded-lg">
+                        ⭐ {local.avaliacao}
+                      </span>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-slate-800 font-bold text-xs truncate">{local.nome}</p>
+                      <p className="text-slate-400 text-[10px] mt-0.5">📍 {local.cidade}</p>
+                      <p className="text-teal-700 font-semibold text-[10px] mt-1">
+                        {Number(local.custo_medio) === 0 ? "Gratuito" : `R$ ${Number(local.custo_medio).toFixed(0)}`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white mt-2 px-5 pb-8">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-slate-800 font-bold">Roteiros recentes</h3>
+              <button onClick={() => setScreen("history")} className="text-teal-600 text-sm font-medium">Histórico →</button>
+            </div>
+            {roteiros.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-6">Nenhum roteiro criado ainda.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {roteiros.slice(0, 2).map((r) => (
+                  <div key={r.id} onClick={() => { setRoteiroAtivo(r); setScreen("itinerary"); }}
+                    className="flex gap-3 bg-slate-50 rounded-xl p-3 cursor-pointer hover:bg-slate-100 transition">
+                    <img src={IMG_FALLBACK[r.regiao_slug] || IMG_FALLBACK['serra-gaucha']} alt={r.regiao_nome}
+                      className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-slate-800 font-semibold text-sm truncate">{r.titulo}</p>
+                      <p className="text-slate-400 text-xs mt-0.5">📍 {r.regiao_nome}</p>
+                      <p className="text-slate-400 text-xs mt-0.5">📅 {r.data_inicio}</p>
+                    </div>
+                    <span className="text-teal-700 font-bold text-sm whitespace-nowrap self-center">
+                      R$ {Number(r.custo_total).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </PageWrapper>
   );
 }
@@ -493,7 +668,39 @@ function PlannerStep3({ setScreen, planData, setPlanData, token, setRoteiroAtivo
 }
 
 // ─── ITINERARY ────────────────────────────────────────────────────────────────
-function ItineraryScreen({ setScreen, roteiro }) {
+function ItineraryScreen({ setScreen, roteiro, token }) {
+  const [exportando, setExportando] = useState(false);
+  const [painelCompartilhar, setPainelCompartilhar] = useState(false);
+  const [linkCompartilhar, setLinkCompartilhar] = useState("");
+  const [copiado, setCopiado] = useState(false);
+
+  const exportar = async () => {
+    setExportando(true);
+    const res = await api.exportarRoteiro(token, roteiro.id);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `roteiro-${roteiro.id}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportando(false);
+  };
+
+  const compartilhar = async () => {
+    const res = await api.compartilharRoteiro(token, roteiro.id);
+    if (res.link) {
+      setLinkCompartilhar(res.link);
+      setPainelCompartilhar(true);
+    }
+  };
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(linkCompartilhar);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  };
+
   if (!roteiro) return (
     <PageWrapper screen="home" setScreen={setScreen}>
       <div className="flex items-center justify-center min-h-screen">
@@ -502,15 +709,49 @@ function ItineraryScreen({ setScreen, roteiro }) {
     </PageWrapper>
   );
 
-  const imgHero = IMG_FALLBACK[roteiro.regiao_slug] || IMG_FALLBACK.serra;
+  const imgHero = IMG_FALLBACK[roteiro.regiao_slug] || IMG_FALLBACK['serra-gaucha'];
 
   return (
     <PageWrapper screen="home" setScreen={setScreen}>
+
+      {/* Painel compartilhar */}
+      {painelCompartilhar && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setPainelCompartilhar(false)} />
+          <div className="relative w-full max-w-sm bg-white rounded-t-3xl shadow-2xl px-5 pt-6 pb-10 flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-slate-800 font-bold text-lg">Compartilhar roteiro</h3>
+              <button onClick={() => setPainelCompartilhar(false)} className="text-slate-400 text-xl">✕</button>
+            </div>
+            <p className="text-slate-500 text-sm">{roteiro.titulo}</p>
+            <div className="bg-slate-100 rounded-xl px-4 py-3 flex items-center gap-2">
+              <p className="text-slate-600 text-xs flex-1 truncate">{linkCompartilhar}</p>
+            </div>
+            <button onClick={copiarLink}
+              className={`w-full font-bold py-3.5 rounded-2xl transition text-sm ${copiado ? "bg-teal-600 text-white" : "bg-teal-800 hover:bg-teal-900 text-white"}`}>
+              {copiado ? "✓ Link copiado!" : "📋 Copiar link"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="relative h-56">
         <img src={imgHero} alt={roteiro.regiao_nome} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         <div className="absolute top-4 left-4 right-4 flex justify-between">
           <button onClick={() => setScreen("home")} className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white text-sm backdrop-blur-sm">←</button>
+          <div className="flex gap-2">
+            <button onClick={exportar} disabled={exportando}
+              className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white text-sm backdrop-blur-sm disabled:opacity-60"
+              title="Exportar roteiro">
+              {exportando ? "⏳" : "⬇"}
+            </button>
+            <button onClick={compartilhar}
+              className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white text-sm backdrop-blur-sm"
+              title="Compartilhar roteiro">
+              ↗
+            </button>
+          </div>
         </div>
         <div className="absolute bottom-4 left-4">
           <p className="text-white/70 text-xs">📍 {roteiro.regiao_nome}</p>
@@ -579,10 +820,13 @@ function ItineraryScreen({ setScreen, roteiro }) {
   );
 }
 
+
+// ─── HISTORY ──────────────────────────────────────────────────────────────────
 // ─── HISTORY ──────────────────────────────────────────────────────────────────
 function HistoryScreen({ setScreen, token, setRoteiroAtivo }) {
   const [roteiros, setRoteiros] = useState([]);
   const [stats, setStats] = useState({ total: 0, regioes: 0, gasto: 0 });
+  const [carregando, setCarregando] = useState(null);
 
   const carregar = () => {
     api.getRoteiros(token).then((data) => {
@@ -601,6 +845,15 @@ function HistoryScreen({ setScreen, token, setRoteiroAtivo }) {
   const deletar = async (id) => {
     await api.deletarRoteiro(token, id);
     carregar();
+  };
+
+  const verRoteiro = async (id) => {
+    setCarregando(id);
+    const roteiro = await api.getRoteiro(token, id);
+    setCarregando(null);
+    if (roteiro.error) return;
+    setRoteiroAtivo(roteiro);
+    setScreen("itinerary");
   };
 
   return (
@@ -631,7 +884,7 @@ function HistoryScreen({ setScreen, token, setRoteiroAtivo }) {
             {roteiros.map((h) => (
               <div key={h.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
                 <div className="relative h-24">
-                  <img src={IMG_FALLBACK[h.regiao_slug] || IMG_FALLBACK.serra} alt={h.regiao_nome} className="w-full h-full object-cover" />
+                  <img src={IMG_FALLBACK[h.regiao_slug] || IMG_FALLBACK['serra-gaucha']} alt={h.regiao_nome} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                   <div className="absolute bottom-2 left-3 right-3 flex justify-between items-end">
                     <div>
@@ -646,9 +899,11 @@ function HistoryScreen({ setScreen, token, setRoteiroAtivo }) {
                 <div className="px-3 py-2.5 flex items-center gap-3 flex-wrap">
                   <span className="text-slate-400 text-xs">📅 {h.data_inicio}</span>
                   <button onClick={() => deletar(h.id)} className="text-slate-400 text-base hover:text-red-400 transition">🗑</button>
-                  <button onClick={() => { setRoteiroAtivo(h); setScreen("itinerary"); }}
-                    className="ml-auto bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold px-4 py-1.5 rounded-xl transition">
-                    Ver roteiro
+                  <button
+                    onClick={() => verRoteiro(h.id)}
+                    disabled={carregando === h.id}
+                    className="ml-auto bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold px-4 py-1.5 rounded-xl transition disabled:opacity-60">
+                    {carregando === h.id ? "Carregando…" : "Ver roteiro"}
                   </button>
                 </div>
               </div>
@@ -659,6 +914,7 @@ function HistoryScreen({ setScreen, token, setRoteiroAtivo }) {
     </PageWrapper>
   );
 }
+
 
 // ─── PROFILE ──────────────────────────────────────────────────────────────────
 function ProfileScreen({ setScreen, token, onLogout }) {
@@ -713,20 +969,595 @@ function ProfileScreen({ setScreen, token, onLogout }) {
               <div className="flex flex-col gap-1">
                 {section.items.map((item) => (
                   <button key={item.title}
-                    onClick={() => { if (item.danger) onLogout(); }}
+                    onClick={() => {
+                      if (item.danger) onLogout();
+                      else if (item.title === "Dados pessoais") setScreen("dadosPessoais");
+                      else if (item.title === "Regiões favoritas") setScreen("regioesFavoritas");
+                      else if (item.title === "Avaliações") setScreen("avaliacoes");
+                      else if (item.title === "Notificações") setScreen("notificacoes");
+                      else if (item.title === "Privacidade e segurança") setScreen("privacidade");
+                      else if (item.title === "Ajuda e suporte") setScreen("ajuda");
+                    }}
+
                     className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 hover:bg-slate-50 transition w-full text-left shadow-sm border border-slate-100">
                     <span className="text-xl w-7 text-center">{item.icon}</span>
                     <div className="flex-1">
-                      <p className={`text-sm font-medium ${item.danger ? "text-red-500" : "text-slate-800"}`}>{item.title}</p>
-                      {item.desc && <p className="text-xs text-slate-400">{item.desc}</p>}
+                    <p className={`text-sm font-medium ${item.danger ? "text-red-500" : "text-slate-800"}`}>{item.title}</p>
+                    {item.desc && <p className="text-xs text-slate-400">{item.desc}</p>}
                     </div>
                     <span className="text-slate-300 text-sm">›</span>
-                  </button>
-                ))}
+                    </button>
+                  ))}
               </div>
             </div>
           ))}
         </div>
+      </div>
+    </PageWrapper>
+  );
+}
+
+// ─── DADOS PESSOAIS ───────────────────────────────────────────────────────────
+function DadosPessoaisScreen({ setScreen, token, usuario, onLogin }) {
+  const [nome, setNome] = useState(usuario?.nome_completo || "");
+  const [senhaAtual, setSenhaAtual] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [showSenhaAtual, setShowSenhaAtual] = useState(false);
+  const [showNovaSenha, setShowNovaSenha] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sucesso, setSucesso] = useState("");
+  const [erro, setErro] = useState("");
+
+  const salvar = async () => {
+    setErro("");
+    setSucesso("");
+
+    if (!nome.trim()) return setErro("O nome não pode estar vazio.");
+
+    if (novaSenha || senhaAtual) {
+      if (!senhaAtual) return setErro("Informe a senha atual para alterá-la.");
+      if (novaSenha.length < 6) return setErro("A nova senha deve ter no mínimo 6 caracteres.");
+      if (novaSenha !== confirmarSenha) return setErro("As senhas não coincidem.");
+    }
+
+    setLoading(true);
+    const dados = { nome_completo: nome };
+    if (novaSenha) { dados.senha_atual = senhaAtual; dados.nova_senha = novaSenha; }
+
+    const res = await api.atualizarPerfil(token, dados);
+    setLoading(false);
+
+    if (res.error) return setErro(res.error);
+
+    onLogin(token, { ...usuario, nome_completo: nome });
+    setSucesso("Dados atualizados com sucesso!");
+    setSenhaAtual("");
+    setNovaSenha("");
+    setConfirmarSenha("");
+  };
+
+  return (
+    <PageWrapper noNav>
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-700 px-6 pt-12 pb-10 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <button onClick={() => setScreen("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white mb-6">←</button>
+        <p className="text-cyan-300 text-xs font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-2">
+          <span>🧭</span> Conexão Gaúcha
+        </p>
+        <h1 className="text-white text-3xl font-bold leading-tight">Dados pessoais 👤</h1>
+        <p className="text-teal-200 text-sm mt-1">Atualize seu nome ou senha</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-t-3xl -mt-4 px-6 pt-8 pb-10 flex flex-col gap-5 relative z-10">
+        {erro && <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-xl">{erro}</p>}
+        {sucesso && <p className="text-teal-700 text-sm bg-teal-50 px-4 py-2 rounded-xl">{sucesso}</p>}
+
+        {/* Nome */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">Nome completo</label>
+          <input type="text" value={nome} onChange={(e) => setNome(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-400 transition" />
+        </div>
+
+        {/* E-mail (somente leitura) */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">E-mail</label>
+          <input type="email" value={usuario?.email || ""} disabled
+            className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3.5 text-sm text-slate-400 cursor-not-allowed" />
+          <p className="text-slate-400 text-xs">O e-mail não pode ser alterado.</p>
+        </div>
+
+        <div className="h-px bg-slate-200" />
+        <p className="text-slate-600 text-sm font-semibold">Alterar senha <span className="text-slate-400 font-normal">(opcional)</span></p>
+
+        {/* Senha atual */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">Senha atual</label>
+          <div className="relative">
+            <input type={showSenhaAtual ? "text" : "password"} value={senhaAtual}
+              onChange={(e) => setSenhaAtual(e.target.value)} placeholder="••••••••"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition pr-12" />
+            <button onClick={() => setShowSenhaAtual(!showSenhaAtual)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+              {showSenhaAtual ? "🙈" : "👁️"}
+            </button>
+          </div>
+        </div>
+
+        {/* Nova senha */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">Nova senha</label>
+          <div className="relative">
+            <input type={showNovaSenha ? "text" : "password"} value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition pr-12" />
+            <button onClick={() => setShowNovaSenha(!showNovaSenha)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+              {showNovaSenha ? "🙈" : "👁️"}
+            </button>
+          </div>
+        </div>
+
+        {/* Confirmar nova senha */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">Confirmar nova senha</label>
+          <input type="password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)}
+            placeholder="Repita a nova senha"
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition" />
+        </div>
+
+        <button onClick={salvar} disabled={loading}
+          className="w-full bg-teal-800 hover:bg-teal-900 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-teal-900/30 active:scale-95 disabled:opacity-60">
+          {loading ? "Salvando…" : "Salvar alterações"}
+        </button>
+      </div>
+    </PageWrapper>
+  );
+}
+
+// ─── REGIÕES FAVORITAS ────────────────────────────────────────────────────────
+function RegioesFavoritasScreen({ setScreen, token, setPlanData }) {
+  const [favoritos, setFavoritos] = useState([]);
+  const [regioes, setRegioes] = useState([]);
+  const [favIds, setFavIds] = useState([]);
+  const [aba, setAba] = useState("favoritas");
+
+  const carregar = async () => {
+    const [favs, todas, ids] = await Promise.all([
+      api.getFavoritos(token),
+      api.getRegioes(token),
+      api.getFavoritosIds(token),
+    ]);
+    if (Array.isArray(favs)) setFavoritos(favs);
+    if (Array.isArray(todas)) setRegioes(todas);
+    if (Array.isArray(ids)) setFavIds(ids);
+  };
+
+  useEffect(() => { carregar(); }, [token]);
+
+  const toggleFavorito = async (regiao) => {
+    if (favIds.includes(regiao.id)) {
+      await api.desfavoritarRegiao(token, regiao.id);
+      setFavIds((p) => p.filter((id) => id !== regiao.id));
+      setFavoritos((p) => p.filter((f) => f.id !== regiao.id));
+    } else {
+      await api.favoritarRegiao(token, regiao.id);
+      setFavIds((p) => [...p, regiao.id]);
+      carregar();
+    }
+  };
+
+  const irParaPlanner = (regiao) => {
+    setPlanData((p) => ({ ...p, regiao }));
+    setScreen("planner2");
+  };
+
+  return (
+    <PageWrapper noNav>
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-700 px-6 pt-12 pb-10 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <button onClick={() => setScreen("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white mb-6">←</button>
+        <p className="text-cyan-300 text-xs font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-2">
+          <span>🧭</span> Conexão Gaúcha
+        </p>
+        <h1 className="text-white text-3xl font-bold leading-tight">Regiões favoritas 📍</h1>
+        <p className="text-teal-200 text-sm mt-1">Suas regiões preferidas do RS</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-t-3xl -mt-4 px-5 pt-6 pb-10 relative z-10">
+        {/* Abas */}
+        <div className="flex gap-2 mb-5">
+          {[{ id: "favoritas", label: "Minhas favoritas" }, { id: "todas", label: "Todas as regiões" }].map((a) => (
+            <button key={a.id} onClick={() => setAba(a.id)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition ${aba === a.id ? "bg-teal-800 text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Aba: Favoritas */}
+        {aba === "favoritas" && (
+          <div className="flex flex-col gap-3">
+            {favoritos.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-8">Nenhuma região favoritada ainda.<br />Vá em "Todas as regiões" para adicionar.</p>
+            ) : (
+              favoritos.map((r) => (
+                <div key={r.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
+                  <div className="relative h-28">
+                    <img src={getImg(r)} alt={r.nome} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                    <div className="absolute bottom-2 left-3">
+                      <p className="text-white font-bold text-sm">{r.nome}</p>
+                      <p className="text-white/60 text-xs">{r.total_roteiros} roteiro{r.total_roteiros !== 1 ? "s" : ""} feito{r.total_roteiros !== 1 ? "s" : ""}</p>
+                    </div>
+                    <button onClick={() => toggleFavorito(r)}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-base">
+                      ❤️
+                    </button>
+                  </div>
+                  <div className="px-3 py-2.5">
+                    <button onClick={() => irParaPlanner(r)}
+                      className="w-full bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold py-2 rounded-xl transition">
+                      + Planejar viagem aqui
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Aba: Todas */}
+        {aba === "todas" && (
+          <div className="flex flex-col gap-3">
+            {regioes.map((r) => {
+              const isFav = favIds.includes(r.id);
+              return (
+                <div key={r.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
+                  <div className="relative h-24">
+                    <img src={getImg(r)} alt={r.nome} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                    <p className="absolute bottom-2 left-3 text-white font-bold text-sm">{r.nome}</p>
+                    <button onClick={() => toggleFavorito(r)}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-base">
+                      {isFav ? "❤️" : "🤍"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </PageWrapper>
+  );
+}
+
+// ─── AVALIAÇÕES ───────────────────────────────────────────────────────────────
+function AvaliacoesScreen({ setScreen, token }) {
+  const [avaliacoes, setAvaliacoes] = useState([]);
+  const [pendentes, setPendentes] = useState([]);
+  const [aba, setAba] = useState("feitas");
+  const [form, setForm] = useState(null); // { roteiro_id, titulo, estrelas, comentario }
+  const [loading, setLoading] = useState(false);
+
+  const carregar = async () => {
+    const [avs, pends] = await Promise.all([
+      api.getAvaliacoes(token),
+      api.getAvaliacoesPendentes(token),
+    ]);
+    if (Array.isArray(avs)) setAvaliacoes(avs);
+    if (Array.isArray(pends)) setPendentes(pends);
+  };
+
+  useEffect(() => { carregar(); }, [token]);
+
+  const salvar = async () => {
+    if (!form.estrelas) return;
+    setLoading(true);
+    await api.salvarAvaliacao(token, {
+      roteiro_id: form.roteiro_id,
+      estrelas: form.estrelas,
+      comentario: form.comentario,
+    });
+    setLoading(false);
+    setForm(null);
+    carregar();
+  };
+
+  const deletar = async (roteiro_id) => {
+    await api.deletarAvaliacao(token, roteiro_id);
+    carregar();
+  };
+
+  const Estrelas = ({ valor, onChange }) => (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} onClick={() => onChange && onChange(n)} className={`text-2xl ${n <= valor ? "text-yellow-400" : "text-slate-200"}`}>★</button>
+      ))}
+    </div>
+  );
+
+  return (
+    <PageWrapper noNav>
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-700 px-6 pt-12 pb-10 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <button onClick={() => setScreen("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white mb-6">←</button>
+        <p className="text-cyan-300 text-xs font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-2">
+          <span>🧭</span> Conexão Gaúcha
+        </p>
+        <h1 className="text-white text-3xl font-bold leading-tight">Avaliações ⭐</h1>
+        <p className="text-teal-200 text-sm mt-1">Suas opiniões sobre os roteiros</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-t-3xl -mt-4 px-5 pt-6 pb-10 relative z-10">
+        {/* Abas */}
+        <div className="flex gap-2 mb-5">
+          {[{ id: "feitas", label: `Feitas (${avaliacoes.length})` }, { id: "pendentes", label: `Pendentes (${pendentes.length})` }].map((a) => (
+            <button key={a.id} onClick={() => setAba(a.id)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition ${aba === a.id ? "bg-teal-800 text-white" : "bg-white text-slate-500 border border-slate-200"}`}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Modal de avaliação */}
+        {form && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setForm(null)} />
+            <div className="relative w-full max-w-sm bg-white rounded-t-3xl shadow-2xl px-5 pt-6 pb-10 flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-slate-800 font-bold">Avaliar roteiro</h3>
+                <button onClick={() => setForm(null)} className="text-slate-400 text-xl">✕</button>
+              </div>
+              <p className="text-slate-600 text-sm">{form.titulo}</p>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-slate-700 text-sm font-semibold">Nota</label>
+                <Estrelas valor={form.estrelas || 0} onChange={(n) => setForm((p) => ({ ...p, estrelas: n }))} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-slate-700 text-sm font-semibold">Comentário <span className="text-slate-400 font-normal">(opcional)</span></label>
+                <textarea value={form.comentario || ""} onChange={(e) => setForm((p) => ({ ...p, comentario: e.target.value }))}
+                  placeholder="Como foi sua experiência?"
+                  rows={3}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition resize-none" />
+              </div>
+              <button onClick={salvar} disabled={!form.estrelas || loading}
+                className="w-full bg-teal-800 text-white font-bold py-3.5 rounded-2xl transition disabled:opacity-60">
+                {loading ? "Salvando…" : "Salvar avaliação"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Aba: Feitas */}
+        {aba === "feitas" && (
+          <div className="flex flex-col gap-3">
+            {avaliacoes.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-8">Nenhuma avaliação feita ainda.</p>
+            ) : (
+              avaliacoes.map((a) => (
+                <div key={a.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-slate-800 font-bold text-sm truncate">{a.titulo}</p>
+                      <p className="text-slate-400 text-xs">📍 {a.regiao_nome} · 📅 {a.data_inicio}</p>
+                    </div>
+                    <div className="flex gap-2 ml-2">
+                      <button onClick={() => setForm({ roteiro_id: a.roteiro_id, titulo: a.titulo, estrelas: a.estrelas, comentario: a.comentario })}
+                        className="text-slate-400 hover:text-teal-600 text-sm">✏️</button>
+                      <button onClick={() => deletar(a.roteiro_id)}
+                        className="text-slate-400 hover:text-red-400 text-sm">🗑</button>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5 my-2">
+                    {[1,2,3,4,5].map((n) => (
+                      <span key={n} className={`text-lg ${n <= a.estrelas ? "text-yellow-400" : "text-slate-200"}`}>★</span>
+                    ))}
+                  </div>
+                  {a.comentario && <p className="text-slate-500 text-xs leading-relaxed bg-slate-50 rounded-xl px-3 py-2">{a.comentario}</p>}
+                  <p className="text-slate-300 text-xs mt-2">{new Date(a.atualizado_em).toLocaleString("pt-BR")}</p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Aba: Pendentes */}
+        {aba === "pendentes" && (
+          <div className="flex flex-col gap-3">
+            {pendentes.length === 0 ? (
+              <p className="text-slate-400 text-sm text-center py-8">Todos os roteiros já foram avaliados! 🎉</p>
+            ) : (
+              pendentes.map((r) => (
+                <div key={r.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-3">
+                  <img src={IMG_FALLBACK[r.regiao_slug] || IMG_FALLBACK['serra-gaucha']} alt={r.regiao_nome}
+                    className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-800 font-bold text-sm truncate">{r.titulo}</p>
+                    <p className="text-slate-400 text-xs">📍 {r.regiao_nome} · 📅 {r.data_inicio}</p>
+                  </div>
+                  <button onClick={() => setForm({ roteiro_id: r.id, titulo: r.titulo, estrelas: 0, comentario: "" })}
+                    className="bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold px-3 py-1.5 rounded-xl transition flex-shrink-0">
+                    Avaliar
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </PageWrapper>
+  );
+}
+
+// ─── NOTIFICAÇÕES ─────────────────────────────────────────────────────────────
+function NotificacoesScreen({ setScreen, token }) {
+  const [notificacoes, setNotificacoes] = useState([]);
+
+  useEffect(() => {
+    api.getNotificacoes(token).then((data) => {
+      if (Array.isArray(data)) setNotificacoes(data);
+    });
+    api.marcarNotificacoesLidas(token);
+  }, [token]);
+
+  return (
+    <PageWrapper noNav>
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-700 px-6 pt-12 pb-10 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <button onClick={() => setScreen("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white mb-6">←</button>
+        <p className="text-cyan-300 text-xs font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-2">
+          <span>🧭</span> Conexão Gaúcha
+        </p>
+        <h1 className="text-white text-3xl font-bold leading-tight">Notificações 🔔</h1>
+        <p className="text-teal-200 text-sm mt-1">Seus alertas e novidades</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-t-3xl -mt-4 px-5 pt-6 pb-10 relative z-10 flex flex-col gap-3">
+        {notificacoes.length === 0 ? (
+          <p className="text-slate-400 text-sm text-center py-8">Nenhuma notificação ainda.</p>
+        ) : (
+          notificacoes.map((n) => (
+            <div key={n.id} className={`rounded-xl p-4 border ${n.lida ? "bg-white border-slate-100" : "bg-cyan-50 border-cyan-100"}`}>
+              <p className="text-slate-800 font-semibold text-sm">{n.titulo}</p>
+              <p className="text-slate-500 text-xs mt-1">{n.mensagem}</p>
+              <p className="text-slate-300 text-xs mt-2">{new Date(n.criado_em).toLocaleString("pt-BR")}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </PageWrapper>
+  );
+}
+
+// ─── PRIVACIDADE E SEGURANÇA ──────────────────────────────────────────────────
+function PrivacidadeScreen({ setScreen }) {
+  const secoes = [
+    {
+      titulo: "📋 Dados coletados",
+      texto: "Coletamos apenas as informações necessárias para o funcionamento do app: nome completo, e-mail e senha (armazenada de forma criptografada). Também armazenamos os roteiros, avaliações e regiões favoritas que você cria dentro da plataforma.",
+    },
+    {
+      titulo: "🔒 Como protegemos seus dados",
+      texto: "Sua senha é armazenada com criptografia bcrypt e nunca é salva em texto puro. A autenticação é feita via token JWT com prazo de expiração. Nenhum dado sensível é trafegado sem autenticação.",
+    },
+    {
+      titulo: "🚫 O que não fazemos",
+      texto: "Não vendemos, compartilhamos ou repassamos seus dados pessoais a terceiros. Não utilizamos seus dados para fins publicitários. Não armazenamos informações de pagamento.",
+    },
+    {
+      titulo: "📍 Uso dos dados de localização",
+      texto: "O app utiliza coordenadas geográficas apenas para exibir locais no mapa via Google Maps. Nenhuma localização do seu dispositivo é coletada ou armazenada.",
+    },
+    {
+      titulo: "🗑️ Exclusão de dados",
+      texto: "Você pode excluir seus roteiros a qualquer momento pelo Histórico. Para solicitar a exclusão completa da sua conta e todos os dados associados, entre em contato pelo suporte.",
+    },
+    {
+      titulo: "📬 Contato",
+      texto: "Dúvidas sobre privacidade? Entre em contato: privacidade@conexaogaucha.com.br",
+    },
+  ];
+
+  return (
+    <PageWrapper noNav>
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-700 px-6 pt-12 pb-10 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <button onClick={() => setScreen("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white mb-6">←</button>
+        <p className="text-cyan-300 text-xs font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-2">
+          <span>🧭</span> Conexão Gaúcha
+        </p>
+        <h1 className="text-white text-3xl font-bold leading-tight">Privacidade e segurança 🔒</h1>
+        <p className="text-teal-200 text-sm mt-1">Como cuidamos dos seus dados</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-t-3xl -mt-4 px-5 pt-6 pb-10 relative z-10 flex flex-col gap-4">
+        {secoes.map((s) => (
+          <div key={s.titulo} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <p className="text-slate-800 font-bold text-sm mb-2">{s.titulo}</p>
+            <p className="text-slate-500 text-xs leading-relaxed">{s.texto}</p>
+          </div>
+        ))}
+      </div>
+    </PageWrapper>
+  );
+}
+
+// ─── AJUDA E SUPORTE ──────────────────────────────────────────────────────────
+function AjudaScreen({ setScreen }) {
+  const [aberto, setAberto] = useState(null);
+
+  const faqs = [
+    {
+      pergunta: "Como criar um roteiro?",
+      resposta: "Na barra inferior, toque em 'Planejar'. Escolha a região, defina as datas e selecione suas preferências e orçamento. O sistema monta o roteiro automaticamente com os melhores locais.",
+    },
+    {
+      pergunta: "Como visualizar um roteiro já criado?",
+      resposta: "Acesse 'Histórico' na barra inferior. Todos os seus roteiros aparecem listados. Toque em 'Ver roteiro' para visualizar o itinerário completo com dias e atrações.",
+    },
+    {
+      pergunta: "Como exportar meu roteiro?",
+      resposta: "Abra o roteiro desejado e toque no botão ⬇ no canto superior direito. O arquivo será baixado automaticamente no formato .txt com todos os detalhes da viagem.",
+    },
+    {
+      pergunta: "Como compartilhar meu roteiro?",
+      resposta: "Abra o roteiro e toque no botão ↗ no canto superior direito. Um link será gerado e você pode copiá-lo para compartilhar com quem quiser.",
+    },
+    {
+      pergunta: "Como favoritar uma região?",
+      resposta: "Vá em Perfil → Regiões favoritas → aba 'Todas as regiões'. Toque no ícone 🤍 ao lado da região desejada para favoritá-la. O ícone muda para ❤️ quando favoritada.",
+    },
+    {
+      pergunta: "Como avaliar um roteiro?",
+      resposta: "Vá em Perfil → Avaliações → aba 'Pendentes'. Toque em 'Avaliar' no roteiro desejado, escolha a nota em estrelas e escreva um comentário opcional.",
+    },
+    {
+      pergunta: "Como alterar meu nome ou senha?",
+      resposta: "Vá em Perfil → Dados pessoais. Você pode editar seu nome e alterar sua senha informando a senha atual e a nova senha.",
+    },
+    {
+      pergunta: "Como excluir um roteiro?",
+      resposta: "Acesse 'Histórico' na barra inferior e toque no ícone 🗑 ao lado do roteiro que deseja excluir. A ação é irreversível.",
+    },
+    {
+      pergunta: "Por que meu roteiro ficou com custo R$0?",
+      resposta: "Isso pode acontecer se a região escolhida não possui locais cadastrados com custo definido, ou se as preferências selecionadas não encontraram locais compatíveis. Tente criar um novo roteiro sem filtrar preferências.",
+    },
+    {
+      pergunta: "O app funciona sem internet?",
+      resposta: "Não. O Conexão Gaúcha precisa de conexão com a internet para carregar regiões, gerar roteiros e salvar seus dados. Certifique-se de estar conectado ao usar o app.",
+    },
+  ];
+
+  return (
+    <PageWrapper noNav>
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-700 px-6 pt-12 pb-10 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <button onClick={() => setScreen("profile")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white mb-6">←</button>
+        <p className="text-cyan-300 text-xs font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-2">
+          <span>🧭</span> Conexão Gaúcha
+        </p>
+        <h1 className="text-white text-3xl font-bold leading-tight">Ajuda e suporte ❓</h1>
+        <p className="text-teal-200 text-sm mt-1">Perguntas frequentes</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-t-3xl -mt-4 px-5 pt-6 pb-10 relative z-10 flex flex-col gap-3">
+        {faqs.map((f, i) => (
+          <div key={i} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <button
+              onClick={() => setAberto(aberto === i ? null : i)}
+              className="w-full flex items-center justify-between px-4 py-4 text-left">
+              <p className="text-slate-800 font-semibold text-sm flex-1 pr-2">{f.pergunta}</p>
+              <span className={`text-slate-400 text-lg transition-transform ${aberto === i ? "rotate-180" : ""}`}>⌄</span>
+            </button>
+            {aberto === i && (
+              <div className="px-4 pb-4">
+                <p className="text-slate-500 text-xs leading-relaxed">{f.resposta}</p>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </PageWrapper>
   );
@@ -765,14 +1596,21 @@ export default function App() {
   const screens = {
     login: <LoginScreen setScreen={setScreen} onLogin={onLogin} />,
     register: <RegisterScreen setScreen={setScreen} onLogin={onLogin} />,
-    home: <HomeScreen setScreen={setScreen} usuario={usuario} token={token} setRoteiroAtivo={setRoteiroAtivo} />,
+    home: <HomeScreen setScreen={setScreen} usuario={usuario} token={token} setRoteiroAtivo={setRoteiroAtivo} setPlanData={setPlanData} />,
     planner: <PlannerStep1 setScreen={setScreen} setPlanData={setPlanData} token={token} />,
     planner2: <PlannerStep2 setScreen={setScreen} planData={planData} setPlanData={setPlanData} />,
     planner3: <PlannerStep3 setScreen={setScreen} planData={planData} setPlanData={setPlanData} token={token} setRoteiroAtivo={setRoteiroAtivo} />,
     itinerary: <ItineraryScreen setScreen={setScreen} roteiro={roteiroAtivo} />,
     history: <HistoryScreen setScreen={setScreen} token={token} setRoteiroAtivo={setRoteiroAtivo} />,
     profile: <ProfileScreen setScreen={setScreen} token={token} onLogout={onLogout} />,
-  };
+    dadosPessoais: <DadosPessoaisScreen setScreen={setScreen} token={token} usuario={usuario} onLogin={onLogin} />,
+    regioesFavoritas: <RegioesFavoritasScreen setScreen={setScreen} token={token} setPlanData={setPlanData} />,
+    avaliacoes: <AvaliacoesScreen setScreen={setScreen} token={token} />,
+    itinerary: <ItineraryScreen setScreen={setScreen} roteiro={roteiroAtivo} token={token} />,
+    notificacoes: <NotificacoesScreen setScreen={setScreen} token={token} />,
+    privacidade: <PrivacidadeScreen setScreen={setScreen} />,
+    ajuda: <AjudaScreen setScreen={setScreen} />,
+  };  
 
   return (
     <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif" }}>
