@@ -74,3 +74,5 @@ compartilharRoteiro: (token, id) =>
 getLocaisPopulares: (token) =>
   fetch(`${BASE}/regioes/populares`, { headers: headers(token) }).then(r => r.json()),
 };
+esqueceuSenha: (email, nova_senha) =>
+  fetch(`${BASE}/auth/esqueci-senha`, { method: 'POST', headers: headers(), body: JSON.stringify({ email, nova_senha }) }).then(r => r.json())

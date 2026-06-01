@@ -111,7 +111,7 @@ function LoginScreen({ setScreen, onLogin }) {
         <div className="flex flex-col gap-1.5">
           <div className="flex justify-between">
             <label className="text-slate-700 text-sm font-semibold">Senha</label>
-            <button className="text-teal-600 text-sm font-medium hover:underline">Esqueci a senha</button>
+            <button onClick={() => setScreen("esqueciSenha")} className="text-teal-600 text-sm font-medium hover:underline">Esqueci a senha</button>
           </div>
           <div className="relative">
             <input type={showPw ? "text" : "password"} placeholder="••••••••" value={pw} onChange={(e) => setPw(e.target.value)}
@@ -1563,6 +1563,80 @@ function AjudaScreen({ setScreen }) {
   );
 }
 
+// ─── ESQUECI SENHA ────────────────────────────────────────────────────────────
+function EsqueciSenhaScreen({ setScreen }) {
+  const [email, setEmail] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [showSenha, setShowSenha] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState("");
+
+  const redefinir = async () => {
+    setErro("");
+    setSucesso("");
+    if (!email || !novaSenha || !confirmarSenha) return setErro("Preencha todos os campos.");
+    if (novaSenha !== confirmarSenha) return setErro("As senhas não coincidem.");
+    if (novaSenha.length < 6) return setErro("A nova senha deve ter no mínimo 6 caracteres.");
+    setLoading(true);
+    const res = await api.esqueceuSenha(email, novaSenha);
+    setLoading(false);
+    if (res.error) return setErro(res.error);
+    setSucesso("Senha redefinida com sucesso!");
+    setTimeout(() => setScreen("login"), 2000);
+  };
+
+  return (
+    <PageWrapper noNav>
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-teal-700 px-6 pt-12 pb-10 relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+        <button onClick={() => setScreen("login")} className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white mb-6">←</button>
+        <p className="text-cyan-300 text-xs font-semibold tracking-widest uppercase flex items-center gap-1.5 mb-2">
+          <span>🧭</span> Conexão Gaúcha
+        </p>
+        <h1 className="text-white text-3xl font-bold leading-tight">Redefinir senha 🔑</h1>
+        <p className="text-teal-200 text-sm mt-1">Informe seu e-mail e a nova senha</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-t-3xl -mt-4 px-6 pt-8 pb-10 flex flex-col gap-5 relative z-10">
+        {erro && <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-xl">{erro}</p>}
+        {sucesso && <p className="text-teal-700 text-sm bg-teal-50 px-4 py-2 rounded-xl">{sucesso}</p>}
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">E-mail cadastrado</label>
+          <input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition" />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">Nova senha</label>
+          <div className="relative">
+            <input type={showSenha ? "text" : "password"} placeholder="Mínimo 6 caracteres" value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition pr-12" />
+            <button onClick={() => setShowSenha(!showSenha)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+              {showSenha ? "🙈" : "👁️"}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-slate-700 text-sm font-semibold">Confirmar nova senha</label>
+          <input type="password" placeholder="Repita a nova senha" value={confirmarSenha}
+            onChange={(e) => setConfirmarSenha(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition" />
+        </div>
+
+        <button onClick={redefinir} disabled={loading}
+          className="w-full bg-teal-800 hover:bg-teal-900 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-teal-900/30 active:scale-95 disabled:opacity-60">
+          {loading ? "Redefinindo…" : "Redefinir senha"}
+        </button>
+      </div>
+    </PageWrapper>
+  );
+}
+
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("login");
@@ -1610,6 +1684,7 @@ export default function App() {
     notificacoes: <NotificacoesScreen setScreen={setScreen} token={token} />,
     privacidade: <PrivacidadeScreen setScreen={setScreen} />,
     ajuda: <AjudaScreen setScreen={setScreen} />,
+    esqueciSenha: <EsqueciSenhaScreen setScreen={setScreen} />,
   };  
 
   return (

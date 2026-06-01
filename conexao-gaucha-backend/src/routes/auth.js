@@ -76,4 +76,29 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/esqueci-senha
+router.post('/esqueci-senha', async (req, res) => {
+  try {
+    const { email, nova_senha } = req.body;
+
+    if (!email || !nova_senha)
+      return res.status(400).json({ error: 'E-mail e nova senha são obrigatórios.' });
+
+    if (nova_senha.length < 6)
+      return res.status(400).json({ error: 'A nova senha deve ter no mínimo 6 caracteres.' });
+
+    const [usuario] = await query('SELECT id FROM usuarios WHERE email = ?', [email]);
+    if (!usuario)
+      return res.status(404).json({ error: 'E-mail não encontrado.' });
+
+    const senha_hash = await bcrypt.hash(nova_senha, 10);
+    await query('UPDATE usuarios SET senha_hash = ? WHERE email = ?', [senha_hash, email]);
+
+    return res.json({ message: 'Senha redefinida com sucesso.' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Erro ao redefinir senha.' });
+  }
+});
+
 module.exports = router;
