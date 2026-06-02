@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import serra_gaucha from "./assets/serra_gaucha.jpg";
 import vale_dos_vinhedos from "./assets/vale_dos_vinhedos.jpeg";
+import porto_alegre from "./assets/porto_alegre.jpg";
 import { api } from "./api";
 
 const IMG_FALLBACK = {
@@ -8,14 +9,14 @@ const IMG_FALLBACK = {
   'litoral-gaucho':  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80',
   'missoes':         'https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&q=80',
   'campanha-gaucha': 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=80',
-  'porto-alegre':    'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=400&q=80',
+  'porto-alegre':    porto_alegre,
   'serra-nordeste':  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=80',
   'vale-vinhedos':   vale_dos_vinhedos,
 };
 
 
 const getImg = (regiao) =>
-  (regiao?.imagem_url) || IMG_FALLBACK[regiao?.slug] || IMG_FALLBACK.serra;
+  IMG_FALLBACK[regiao?.slug] || regiao?.imagem_url || IMG_FALLBACK['serra-gaucha'];
 
 const PREFERENCES = [
   { id: "natureza", label: "Natureza", emoji: "🌿" },

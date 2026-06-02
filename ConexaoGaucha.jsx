@@ -1,6 +1,7 @@
 import { useState } from "react";
 import serra_gaucha from "./src/assets/serra_gaucha.jpg";
 import vale_dos_vinhedos from "./src/assets/vale_dos_vinhedos.jpeg";
+import porto_alegre from "./src/assets/porto_alegre.webp";
 
 
 // ─── THEME / DESIGN TOKENS ───────────────────────────────────────────────────
@@ -14,7 +15,7 @@ const REGIONS = [
   { id: "litoral", name: "Litoral Gaúcho", cities: "Torres · Tramandaí · Capão da Canoa", img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80" },
   { id: "missoes", name: "Missões", cities: "São Miguel das Missões · Santo Ângelo", img: "https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=400&q=80" },
   { id: "campanha", name: "Campanha Gaúcha", cities: "Bagé · Santana do Livramento · Dom Pedrito", img: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=80" },
-  { id: "poa", name: "Porto Alegre e Região", cities: "Porto Alegre · Novo Hamburgo · São Leopoldo", img: "https://images.unsplash.com/photo-1592194996308-7b43878e84a6?w=400&q=80" },
+  { id: "poa", name: "Porto Alegre e Região", cities: "Porto Alegre · Novo Hamburgo · São Leopoldo", img: porto_alegre },
   { id: "nordeste", name: "Serra do Nordeste", cities: "Vacaria · Bom Jesus · São Francisco de Paula", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&q=80" },
   { id: "vinhedos", name: "Vale dos Vinhedos", cities: "Garibaldi · Carlos Barbosa · Monte Belo do Sul", img: vale_dos_vinhedos },
 ];
